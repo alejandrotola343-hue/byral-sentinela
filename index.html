@@ -1,0 +1,1028 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BYRAL SENTINELA | Observatorio Geoespacial GAMC</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #05080b;
+      --bg-panel: rgba(7, 12, 16, 0.92);
+      --bg-card: rgba(10, 18, 24, 0.85);
+      --teal: #2dd4bf;
+      --cyan: #06b6d4;
+      --cyan-bright: #22d3ee;
+      --border-dashed: rgba(45, 212, 191, 0.48);
+      --border-subtle: rgba(45, 212, 191, 0.22);
+      --text: #ffffff;
+      --muted: #94a3b8;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    body {
+      background-color: var(--bg-void);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Textura sutil tipo CRT / micro-rejilla idéntica a la captura */
+    .scanline-grid {
+      background-image:
+        linear-gradient(rgba(45, 212, 191, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45, 212, 191, 0.045) 1px, transparent 1px);
+      background-size: 4px 4px;
+    }
+
+    /* ================= PANTALLA DE ENTRADA (ESTÉTICA NETLIFY DROP) ================= */
+    #welcomeScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: var(--bg-void);
+      display: flex;
+      flex-direction: column;
+      padding: 18px 24px 24px 24px;
+      transition: opacity 0.55s ease, visibility 0.55s ease, transform 0.55s ease;
+    }
+    #welcomeScreen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: scale(1.02);
+    }
+
+    .top-brand-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
+    .netlify-sun {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -0.3px;
+      color: #fff;
+    }
+    .netlify-sun span.accent {
+      font-weight: 400;
+      color: #cbd5e1;
+    }
+
+    /* Marco exterior punteado cian */
+    .dashed-frame {
+      flex: 1;
+      border: 1.5px dashed var(--border-dashed);
+      border-radius: 26px;
+      padding: 12px;
+      display: flex;
+      position: relative;
+    }
+
+    /* Lienzo interior con auroras esmeralda, azul profundo y cian + scanlines */
+    .aurora-canvas {
+      flex: 1;
+      border-radius: 18px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 32px 24px;
+      background-color: #030608;
+      background-image:
+        radial-gradient(ellipse 46% 68% at 34% 48%, rgba(20, 148, 134, 0.52) 0%, rgba(11, 78, 76, 0.25) 48%, transparent 75%),
+        radial-gradient(ellipse 30% 48% at 86% 42%, rgba(6, 182, 212, 0.72) 0%, rgba(29, 78, 216, 0.38) 55%, transparent 78%),
+        radial-gradient(ellipse 35% 80% at 4% 50%, rgba(13, 110, 102, 0.45) 0%, transparent 70%);
+    }
+    .aurora-canvas::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.26) 0px, rgba(0, 0, 0, 0.26) 1px, transparent 1px, transparent 3px),
+        repeating-linear-gradient(90deg, rgba(45, 212, 191, 0.04) 0px, rgba(45, 212, 191, 0.04) 1px, transparent 1px, transparent 4px);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 720px;
+    }
+    .hero-title {
+      font-size: clamp(34px, 5.2vw, 58px);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -1.5px;
+      color: #ffffff;
+      margin-bottom: 18px;
+      text-shadow: 0 4px 28px rgba(0, 0, 0, 0.45);
+    }
+    .hero-subtitle {
+      font-size: 15.5px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      max-width: 580px;
+      margin: 0 auto 32px auto;
+      font-weight: 400;
+    }
+
+    .cta-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .btn-enter-main {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(6, 182, 212, 0.16);
+      border: 1.5px solid var(--teal);
+      color: #ffffff;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 28px rgba(45, 212, 191, 0.28);
+      transition: all 0.22s ease;
+    }
+    .btn-enter-main:hover {
+      background: var(--teal);
+      color: #030709;
+      box-shadow: 0 0 38px rgba(45, 212, 191, 0.65);
+      transform: translateY(-2px);
+    }
+
+    .hero-links {
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+    .hero-links button {
+      background: none;
+      border: none;
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .hero-links button:hover { color: var(--teal); }
+
+    /* Pill estilo "Questions ?" abajo a la derecha */
+    .corner-pill {
+      position: absolute;
+      bottom: 18px;
+      right: 18px;
+      z-index: 3;
+      background: rgba(15, 23, 30, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #f8fafc;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .corner-pill:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* ================= INTERFAZ PRINCIPAL (MISMA ESTÉTICA AURORA + BORDE PUNTEADO) ================= */
+    header {
+      background: #05080b;
+      border-bottom: 1px dashed var(--border-dashed);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      color: var(--teal);
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .brand h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.3px; color: #fff; }
+    .brand span { font-size: 12px; color: var(--muted); font-weight: 400; }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: rgba(10, 17, 23, 0.9);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+    .tab-btn {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      padding: 7px 13px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(45, 212, 191, 0.16);
+      color: #ffffff;
+      border: 1px solid rgba(45, 212, 191, 0.45);
+    }
+
+    .btn-ai-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.35), rgba(6, 182, 212, 0.32));
+      border: 1px solid var(--teal);
+      color: #ffffff;
+      padding: 8px 15px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 0 18px rgba(45, 212, 191, 0.22);
+      transition: 0.2s;
+    }
+    .btn-ai-trigger:hover {
+      background: var(--teal);
+      color: #04080b;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      flex: 1;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 12% 35%, rgba(16, 118, 108, 0.16), transparent 45%),
+        radial-gradient(circle at 88% 70%, rgba(6, 182, 212, 0.14), transparent 45%),
+        #05080b;
+    }
+
+    aside {
+      background: var(--bg-panel);
+      border-right: 1px dashed var(--border-dashed);
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    aside::-webkit-scrollbar { width: 5px; }
+    aside::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.3); border-radius: 999px; }
+
+    .view { display: none; flex-direction: column; gap: 11px; }
+    .view.active { display: flex; }
+
+    .layer-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 13px;
+      transition: 0.2s;
+    }
+    .layer-card:hover { border-color: var(--teal); }
+    .layer-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .layer-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #fff; }
+    .swatch { width: 13px; height: 13px; border-radius: 4px; display: inline-block; flex-shrink: 0; }
+    .count-pill {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(45, 212, 191, 0.12);
+      color: var(--teal);
+      border: 1px solid rgba(45, 212, 191, 0.28);
+    }
+    .layer-desc { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin-bottom: 6px; }
+    .layer-id { font-family: var(--mono); font-size: 9.5px; color: #64748b; }
+    .opacity-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--muted); }
+    .opacity-row input[type="range"] { flex: 1; accent-color: var(--teal); cursor: pointer; }
+
+    /* SWITCH */
+    .switch { position: relative; display: inline-block; width: 38px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0; background: #0d161d;
+      border-radius: 999px; transition: 0.25s; border: 1px solid var(--border-subtle);
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px;
+      background: #64748b; border-radius: 50%; transition: 0.25s;
+    }
+    input:checked + .slider { background: rgba(45, 212, 191, 0.22); border-color: var(--teal); }
+    input:checked + .slider:before { transform: translateX(18px); background: var(--teal); }
+
+    /* INSPECTOR */
+    .inspector-box {
+      background: rgba(6, 15, 20, 0.92);
+      border: 1px dashed var(--border-dashed);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 12px;
+    }
+    .inspector-box h4 {
+      font-family: var(--mono);
+      color: var(--teal);
+      font-size: 11px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+        .attr-group {
+      background: rgba(6, 13, 18, 0.96);
+      border: 1px solid rgba(45, 212, 191, 0.35);
+      border-radius: 8px;
+      padding: 9px 11px;
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #ffffff !important;
+    }
+    .attr-group b { color: #cbd5e1; font-weight: 600; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: #070d12 !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(45, 212, 191, 0.45);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85);
+    }
+    .leaflet-popup-close-button { color: #94a3b8 !important; }
+
+    /* BUSCADOR Y REGISTROS */
+    .search-box { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 13px; }
+    input[type="text"], textarea {
+      width: 100%; background: #04080b; color: #fff;
+      border: 1px solid var(--border-subtle); padding: 9px 12px; border-radius: 8px;
+      font-size: 12.5px; outline: none;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: var(--teal); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+    .chip {
+      background: #04080b; border: 1px solid var(--border-subtle); color: var(--muted);
+      padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .chip.active { border-color: var(--teal); color: var(--teal); background: rgba(45, 212, 191, 0.14); }
+    .feed { display: flex; flex-direction: column; gap: 8px; }
+    .item-card {
+      background: rgba(6, 11, 15, 0.9); border: 1px solid var(--border-subtle);
+      border-radius: 10px; padding: 10px 12px; cursor: pointer; transition: 0.15s;
+    }
+    .item-card:hover { border-color: var(--teal); }
+    .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 11px; }
+    .tag { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+    .t-em { background: rgba(6, 182, 212, 0.18); color: #22d3ee; }
+    .t-cu { background: rgba(251, 191, 36, 0.16); color: #fbbf24; }
+    .t-dr { background: rgba(45, 212, 191, 0.18); color: #2dd4bf; }
+    .t-di { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
+    .item-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+    .item-details { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+    /* CONSULTA IA */
+    .ai-panel {
+      background: linear-gradient(165deg, rgba(11, 24, 28, 0.92), rgba(5, 9, 13, 0.96));
+      border: 1px dashed var(--border-dashed);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ai-header { display: flex; justify-content: space-between; align-items: center; }
+    .ai-header h3 { font-size: 13px; font-weight: 800; color: var(--teal); }
+    .ai-prompts { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ai-chip {
+      background: rgba(45, 212, 191, 0.09);
+      border: 1px solid rgba(45, 212, 191, 0.3);
+      color: #ccfbf1;
+      font-size: 11px;
+      padding: 5px 9px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .ai-chip:hover { background: rgba(45, 212, 191, 0.2); border-color: var(--teal); }
+    .btn-ask-ai {
+      background: var(--teal);
+      color: #030709;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-ask-ai:hover { background: var(--cyan-bright); }
+    .ai-response-box {
+      background: #04070a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 12.2px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+    .ai-response-box strong { color: var(--teal); }
+    .ai-response-box ul { padding-left: 16px; margin: 6px 0; }
+
+    /* MAPA */
+    .map-wrap { position: relative; width: 100%; height: 100%; padding: 10px; }
+    .map-dashed-shell {
+      width: 100%; height: 100%;
+      border: 1.5px dashed var(--border-dashed);
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+    #map { width: 100%; height: 100%; background: #05080b; }
+    .click-hint {
+      position: absolute; bottom: 16px; left: 16px; z-index: 900;
+      background: rgba(5, 8, 11, 0.9); color: #e2e8f0;
+      border: 1px solid var(--border-subtle); padding: 7px 12px; border-radius: 999px;
+      font-size: 11px; font-weight: 600;
+    }
+    .legend-box {
+      position: absolute; bottom: 16px; right: 16px; z-index: 900;
+      background: rgba(5, 8, 11, 0.92);
+      border: 1px solid var(--border-subtle); padding: 11px 14px; border-radius: 12px;
+      font-size: 11px; display: flex; flex-direction: column; gap: 5px; max-height: 300px; overflow-y: auto;
+    }
+    .leg-row { display: flex; align-items: center; gap: 8px; }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; grid-template-rows: 52% 48%; }
+    }
+  </style>
+</head>
+<body class="scanline-grid">
+
+  <!-- PANTALLA DE ENTRADA CON ESTÉTICA AURORA + MARCO PUNTEADO CIAN -->
+  <div id="welcomeScreen">
+    <div class="top-brand-bar">
+      <div class="netlify-sun">
+        <span style="color:var(--teal);font-family:var(--mono);">✳</span>
+        <span>byral</span><span class="accent">sentinela</span>
+      </div>
+    </div>
+
+    <div class="dashed-frame">
+      <div class="aurora-canvas">
+        <div class="hero-content">
+          <h1 class="hero-title">Explora Cochabamba<br>en tiempo real</h1>
+          <p class="hero-subtitle">
+            Observatorio geoespacial con las 4 capas oficiales del Portal GAMC (Cuencas UH 7, Drenaje e Influencia, Distritos y Emergencias) integrado con consulta inteligente sobre registros históricos.
+          </p>
+          <div class="cta-group">
+            <button class="btn-enter-main" onclick="entrarAlSistema()">
+              <span>↑</span> Abrir visor geoespacial
+            </button>
+            <div class="hero-links">
+              o ir directo a <button onclick="entrarDirectoIA()">consulta IA</button>, <button onclick="entrarDirectoRegistros()">registros descargados</button>, o <button onclick="entrarAlSistema()">inspección de mapa</button>.
+            </div>
+          </div>
+        </div>
+
+        <button class="corner-pill" onclick="entrarDirectoIA()">Consulta IA ?</button>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="brand">
+      <span class="brand-mark">✳</span>
+      <h2>byral<span style="font-weight:400;color:#cbd5e1;">sentinela</span></h2>
+      <span>· Atlas Geoespacial GAMC Cochabamba</span>
+    </div>
+    <div class="header-actions">
+      <nav class="tabs">
+        <button class="tab-btn active" id="btnTabCapas" onclick="abrirTab('capas', this)">1. Capas e Inspector</button>
+        <button class="tab-btn" id="btnTabTodos" onclick="abrirTab('todos', this)">2. Registros (<span id="hdrCount">0</span>)</button>
+      </nav>
+      <button class="btn-ai-trigger" id="btnTabIA" onclick="abrirTab('ia', this)">✦ Consultar IA</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside>
+      <!-- VISTA 1: CONTROL DE LAS 4 CAPAS WMS + INSPECTOR AL HACER CLIC -->
+      <div id="tab-capas" class="view active">
+
+        <div class="inspector-box" id="inspectorPanel">
+          <h4>📍 Telemetría GetFeatureInfo</h4>
+          <p style="color:#cbd5e1;font-size:11.5px;">
+            Haz clic sobre cualquier punto, cuenca, quebrada o distrito del mapa para consultar en vivo sus atributos oficiales del GAMC.
+          </p>
+        </div>
+
+        <!-- CAPA 1: EMERGENCIAS -->
+        <div class="layer-card">
+          <div class="layer-top">
+            <div class="layer-title">
+              <span class="swatch" style="background:#38bdf8;border-radius:50%;border:2px solid #fff;"></span>
+              1. Emergencias · Simple
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="count-pill" id="cntEmerg">WMS Activa</span>
+              <label class="switch"><input type="checkbox" checked onchange="toggleWMS('emergencias', this.checked)"><span class="slider"></span></label>
+            </div>
+          </div>
+          <p class="layer-desc">Puntos de emergencias atendidas por el GAMC en Cochabamba (árboles caídos, inundaciones, obstrucciones).</p>
+          <div class="layer-id">service_id: e105a6ed-74bb-41a5-8c85-9360711ddf69</div>
+        </div>
+
+        <!-- CAPA 2: CUENCAS UH 7 -->
+        <div class="layer-card">
+          <div class="layer-top">
+            <div class="layer-title">
+              <span class="swatch" style="background:#eab308;border:1px solid #78350f;"></span>
+              2. Cuencas UH 7 · Categorizado
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="count-pill" id="cntCuencas">9 Subcuencas</span>
+              <label class="switch"><input type="checkbox" checked onchange="toggleWMS('cuencas', this.checked)"><span class="slider"></span></label>
+            </div>
+          </div>
+          <p class="layer-desc">Polígonos completos de la Cuenca Río Rocha (códigos 4669881 al 4669889) desde Sipe Sipe y Tunari hasta Punata y Arani.</p>
+          <div class="opacity-row">
+            <span>Opacidad:</span>
+            <input type="range" min="0.1" max="1" step="0.05" value="0.65" oninput="wmsLayers.cuencas.setOpacity(this.value)">
+          </div>
+          <div class="layer-id" style="margin-top:5px;">service_id: fb368617-f2fd-43e8-867a-4456364efb52</div>
+        </div>
+
+        <!-- CAPA 3: DRENAJE E INFLUENCIA -->
+        <div class="layer-card">
+          <div class="layer-top">
+            <div class="layer-title">
+              <span class="swatch" style="background:#2563eb;height:5px;margin-top:4px;"></span>
+              3. Drenaje e Influencia · Simple
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="count-pill" id="cntDrenaje">Red Completa</span>
+              <label class="switch"><input type="checkbox" checked onchange="toggleWMS('drenaje', this.checked)"><span class="slider"></span></label>
+            </div>
+          </div>
+          <p class="layer-desc">Red hidrográfica completa de quebradas y torrenteras que bajan desde la cordillera del Tunari y el sur hacia el Río Rocha.</p>
+          <div class="opacity-row">
+            <span>Opacidad:</span>
+            <input type="range" min="0.1" max="1" step="0.05" value="0.95" oninput="wmsLayers.drenaje.setOpacity(this.value)">
+          </div>
+          <div class="layer-id" style="margin-top:5px;">service_id: d4cea6e3-fc7f-482a-94ad-bd377df78886</div>
+        </div>
+
+        <!-- CAPA 4: LÍMITE DISTRITOS -->
+        <div class="layer-card">
+          <div class="layer-top">
+            <div class="layer-title">
+              <span class="swatch" style="background:rgba(126,34,206,0.25);border:2px solid #7e22ce;"></span>
+              4. Límite Distritos · Categorizado
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="count-pill" id="cntDistritos">14 Distritos</span>
+              <label class="switch"><input type="checkbox" checked onchange="toggleWMS('distritos', this.checked)"><span class="slider"></span></label>
+            </div>
+          </div>
+          <p class="layer-desc">Perímetros oficiales de todos los distritos y comunas municipales (D1 al D14, Itocta, Tunari, Alejo Calatayud, etc.).</p>
+          <div class="opacity-row">
+            <span>Opacidad:</span>
+            <input type="range" min="0.1" max="1" step="0.05" value="0.85" oninput="wmsLayers.distritos.setOpacity(this.value)">
+          </div>
+          <div class="layer-id" style="margin-top:5px;">service_id: 7eb13092-bf0e-493b-aae6-03c43eedda2c</div>
+        </div>
+
+      </div>
+
+      <!-- VISTA 2: REGISTROS COSECHADOS -->
+      <div id="tab-todos" class="view">
+        <div class="search-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <strong style="font-size:12.5px;color:var(--teal);">🔎 Registros Oficiales Descargados</strong>
+            <span class="count-pill" id="totalFiltrados">0 elementos</span>
+          </div>
+          <input type="text" id="inputBusca" placeholder="Buscar por caso, distrito, comuna, código UH..." oninput="renderizarLista()" />
+          <div class="chips">
+            <button class="chip active" onclick="filtrarTipo('todos', this)">Todos</button>
+            <button class="chip" onclick="filtrarTipo('emergencias', this)">🔵 Emergencias</button>
+            <button class="chip" onclick="filtrarTipo('cuencas', this)">🟡 Cuencas UH 7</button>
+            <button class="chip" onclick="filtrarTipo('drenaje', this)">💧 Drenaje</button>
+            <button class="chip" onclick="filtrarTipo('distritos', this)">🟣 Distritos</button>
+          </div>
+        </div>
+        <div class="feed" id="listaTodos"></div>
+      </div>
+
+      <!-- VISTA 3: CONSULTA IA EN BASE A LOS REGISTROS -->
+      <div id="tab-ia" class="view">
+        <div class="ai-panel">
+          <div class="ai-header">
+            <h3>✦ Asistente Analítico BYRAL</h3>
+            <span class="count-pill" id="aiBaseCount">0 reg. indexados</span>
+          </div>
+          <p style="font-size:11.8px;color:var(--muted);line-height:1.45;">
+            Consulta cualquier patrón sobre los registros almacenados (emergencias, inundaciones, árboles caídos, unidades responsables, distritos o cuencas UH 7).
+          </p>
+          <div class="ai-prompts">
+            <button class="ai-chip" onclick="ejecutarConsultaIA('Haz un resumen general de todos los registros cargados')">📊 Resumen total</button>
+            <button class="ai-chip" onclick="ejecutarConsultaIA('¿Qué emergencias por inundación, canales o lluvias existen?')">💧 Riesgos hídricos</button>
+            <button class="ai-chip" onclick="ejecutarConsultaIA('¿Qué unidades municipales atienden más casos?')">🏛️ Unidades responsables</button>
+            <button class="ai-chip" onclick="ejecutarConsultaIA('¿Qué distritos, comunas y cuencas UH 7 están registrados?')">🗺️ Distritos y Cuencas</button>
+          </div>
+          <textarea id="aiQueryInput" rows="2" placeholder="Escribe tu consulta sobre los registros de Cochabamba..."></textarea>
+          <button class="btn-ask-ai" onclick="ejecutarConsultaIA()">Analizar registros</button>
+          <div class="ai-response-box" id="aiOutput">
+            <strong>Listo para analizar.</strong> Elige una consulta rápida o escribe tu pregunta arriba para cruzar los registros locales del portal GAMC.
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="map-wrap">
+      <div class="map-dashed-shell">
+        <div id="map"></div>
+        <div class="click-hint">Haz clic en el mapa para consultar atributos · GetFeatureInfo</div>
+        <div class="legend-box">
+          <strong style="color:var(--teal);">LEYENDA OFICIAL GAMC</strong>
+          <div class="leg-row"><span class="swatch" style="background:#38bdf8;border-radius:50%;border:1px solid #fff;"></span>Emergencias (Puntos)</div>
+          <div class="leg-row"><span class="swatch" style="background:#2563eb;height:4px;"></span>Drenaje e Influencia</div>
+          <div class="leg-row"><span class="swatch" style="background:rgba(126,34,206,0.2);border:2px solid #7e22ce;"></span>Límite Distritos</div>
+          <strong style="color:#fbbf24;margin-top:4px;">Cuencas UH 7 (Nivel 7)</strong>
+          <div class="leg-row"><span class="swatch" style="background:#bcaaa4;"></span>4669884 · 4669888</div>
+          <div class="leg-row"><span class="swatch" style="background:#f5cba7;"></span>4669886 · 4669883 · 4669889</div>
+          <div class="leg-row"><span class="swatch" style="background:#d4d88c;"></span>4669885 · 4669881</div>
+          <div class="leg-row"><span class="swatch" style="background:#f5b7b1;"></span>4669887 · 4669882</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    function entrarAlSistema() {
+      document.getElementById('welcomeScreen').classList.add('hidden');
+      setTimeout(() => map.invalidateSize(), 300);
+    }
+    function entrarDirectoIA() {
+      entrarAlSistema();
+      abrirTab('ia', document.getElementById('btnTabIA'));
+    }
+    function entrarDirectoRegistros() {
+      entrarAlSistema();
+      abrirTab('todos', document.getElementById('btnTabTodos'));
+    }
+
+    /* ================= LÓGICA TÉCNICA INTACTA DE LAS 4 CAPAS WMS ================= */
+    const WMS_URL = "https://serviciosgamc.cochabamba.bo/api/gs/wms";
+    const GAMC_KEY = "15a5f168e26bd9270fc975b90aa09339b1706c9c8b290a6f";
+
+    const SERVICE_IDS = {
+      emergencias: "e105a6ed-74bb-41a5-8c85-9360711ddf69",
+      cuencas:     "fb368617-f2fd-43e8-867a-4456364efb52",
+      drenaje:     "d4cea6e3-fc7f-482a-94ad-bd377df78886",
+      distritos:   "7eb13092-bf0e-493b-aae6-03c43eedda2c"
+    };
+
+    const mapaOscuroBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Esri Dark | Portal GAMC Cochabamba'
+    });
+    const mapaOscuroRef = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}');
+    const grupoOscuro = L.layerGroup([mapaOscuroBase, mapaOscuroRef]);
+
+    const mapaClaro = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap | Portal GAMC Cochabamba'
+    });
+    const mapaSatelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Esri Satellite | Portal GAMC Cochabamba'
+    });
+
+    const map = L.map('map', { layers: [grupoOscuro] }).setView([-17.395, -66.165], 12);
+    L.control.layers({
+      '🌌 Mapa Oscuro': grupoOscuro,
+      '🛰️ Vista Satelital': mapaSatelite,
+      '🗺️ Mapa Oficial (OSM)': mapaClaro
+    }, null, { position: 'topright' }).addTo(map);
+
+    function crearCapaWMS(sid, opacity, zIndex) {
+      return L.tileLayer.wms(WMS_URL, {
+        key: GAMC_KEY,
+        service_id: sid,
+        layers: '',
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        opacity: opacity,
+        zIndex: zIndex
+      });
+    }
+
+    const wmsLayers = {
+      cuencas:     crearCapaWMS(SERVICE_IDS.cuencas,     0.65, 200).addTo(map),
+      distritos:   crearCapaWMS(SERVICE_IDS.distritos,   0.85, 300).addTo(map),
+      drenaje:     crearCapaWMS(SERVICE_IDS.drenaje,     0.95, 400).addTo(map),
+      emergencias: crearCapaWMS(SERVICE_IDS.emergencias, 1.00, 500).addTo(map)
+    };
+
+    const activas = { cuencas: true, distritos: true, drenaje: true, emergencias: true };
+
+    function toggleWMS(nombre, estado) {
+      activas[nombre] = estado;
+      if (estado) wmsLayers[nombre].addTo(map);
+      else map.removeLayer(wmsLayers[nombre]);
+    }
+
+    function limpiarTexto(txt) {
+      return String(txt || '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&quot;/gi, '"')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    map.on('click', async function (e) {
+      const panel = document.getElementById('inspectorPanel');
+      panel.innerHTML = `<h4>📍 Consultando (${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})...</h4>`;
+
+      const size = map.getSize();
+      const bounds = map.getBounds();
+      const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+      const pt = map.latLngToContainerPoint(e.latlng);
+      const x = Math.round(pt.x);
+      const y = Math.round(pt.y);
+
+      const nombresCapas = {
+        emergencias: '🔵 Emergencias',
+        drenaje: '💧 Drenaje e Influencia',
+        distritos: '🟣 Límite Distritos',
+        cuencas: '🟡 Cuencas UH 7'
+      };
+
+      let htmlResultados = '';
+      for (const key of ['emergencias', 'drenaje', 'distritos', 'cuencas']) {
+        if (!activas[key]) continue;
+        const url = `${WMS_URL}?key=${GAMC_KEY}&service_id=${SERVICE_IDS[key]}&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=&QUERY_LAYERS=&SRS=EPSG:4326&BBOX=${bbox}&WIDTH=${size.x}&HEIGHT=${size.y}&X=${x}&Y=${y}&INFO_FORMAT=application/json&FEATURE_COUNT=5`;
+        try {
+          const r = await fetch(url);
+          if (!r.ok) continue;
+          const data = await r.json();
+          const feats = data.features || [];
+          feats.forEach((f, idx) => {
+            const props = f.properties || {};
+            const filas = Object.entries(props)
+              .filter(([k, v]) => v !== null && v !== '' && !k.toLowerCase().includes('geom'))
+              .map(([k, v]) => `<b>${limpiarTexto(k)}:</b> ${limpiarTexto(v)}`)
+              .join('<br>');
+            if (filas) {
+              htmlResultados += `<div class="attr-group"><div style="color:#2dd4bf;font-weight:800;margin-bottom:3px;">${nombresCapas[key]} · Elemento ${idx + 1}</div>${filas}</div>`;
+            }
+          });
+        } catch (err) {}
+      }
+
+      if (!htmlResultados) {
+        htmlResultados = `<p style="color:#94a3b8;font-size:11.5px;margin-top:4px;">Sin datos puntuales en esta coordenada exacta. Haz clic sobre un polígono, línea azul o punto celeste.</p>`;
+      }
+
+      panel.innerHTML = `<h4>📍 Atributos en (${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})</h4>${htmlResultados}`;
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent(`<div style="max-height:240px;overflow-y:auto;font-size:11.5px;min-width:210px;color:#ffffff;">${htmlResultados}</div>`)
+        .openOn(map);
+    });
+
+    /* ================= CATÁLOGO DE REGISTROS ================= */
+    let todosLosRegistros = [];
+    let filtroActivo = 'todos';
+
+    async function cargarCatalogoLocal() {
+      const fuentes = [
+        { url: './capa_emergencias.geojson', tipo: 'emergencias', tagClass: 't-em' },
+        { url: './capa_cuencas.geojson',     tipo: 'cuencas',     tagClass: 't-cu' },
+        { url: './capa_drenaje.geojson',     tipo: 'drenaje',     tagClass: 't-dr' },
+        { url: './capa_distritos.geojson',   tipo: 'distritos',   tagClass: 't-di' }
+      ];
+
+      for (const f of fuentes) {
+        try {
+          const r = await fetch(f.url);
+          if (!r.ok) continue;
+          const geo = await r.json();
+          (geo.features || []).forEach(feat => {
+            const p = feat.properties || {};
+            const coords = feat.geometry?.coordinates;
+            let latlng = null;
+            if (feat.geometry?.type === 'Point' && Array.isArray(coords)) {
+              latlng = [coords[1], coords[0]];
+            }
+
+            if (f.tipo === 'emergencias') {
+              const num = limpiarTexto(p.Numero || p.numero || 'S/N');
+              todosLosRegistros.push({
+                tipo: 'emergencias', tagClass: 't-em',
+                etiqueta: `🔵 Emergencia #${num}`,
+                titulo: limpiarTexto(p.Descripción || p.descripcion || 'Reporte municipal'),
+                resumen: `Fecha: ${limpiarTexto(p.Fecha || p.fecha)} · Unidad: ${limpiarTexto(p['Unidad Responsable'] || p.unidad_responsable)} · Estado: ${limpiarTexto(p.Estado || p.estado)}`,
+                raw: p, latlng
+              });
+            } else if (f.tipo === 'cuencas') {
+              const n7 = limpiarTexto(p['Nivel 7'] || p.nivel_7 || '');
+              todosLosRegistros.push({
+                tipo: 'cuencas', tagClass: 't-cu',
+                etiqueta: `🟡 Cuenca UH 7 (${n7})`,
+                titulo: `${limpiarTexto(p['Nombre uh'] || p.nombre_uh || 'Río Rocha')} — Subcuenca ${n7}`,
+                resumen: `Área: ${limpiarTexto(p['Área'] || p.area)} · Nivel 5: ${limpiarTexto(p['Nivel 5'] || '')}`,
+                raw: p, latlng
+              });
+            } else if (f.tipo === 'drenaje') {
+              const clas = limpiarTexto(p['Clasificación'] || p.clasificacion || 'Quebrada / Torrentera');
+              todosLosRegistros.push({
+                tipo: 'drenaje', tagClass: 't-dr',
+                etiqueta: `💧 Drenaje Tipo ${limpiarTexto(p.Tipo || p.tipo || '3')}`,
+                titulo: clas,
+                resumen: `Red de Drenaje e Influencia GAMC`,
+                raw: p, latlng
+              });
+            } else if (f.tipo === 'distritos') {
+              const dist = limpiarTexto(p.Distrito || p.distrito || 'Distrito');
+              const com = limpiarTexto(p.Comuna || p.comuna || 'Comuna');
+              todosLosRegistros.push({
+                tipo: 'distritos', tagClass: 't-di',
+                etiqueta: `🟣 ${dist}`,
+                titulo: `${dist} — Comuna ${com}`,
+                resumen: `Jurisdicción Territorial Municipal GAMC`,
+                raw: p, latlng
+              });
+            }
+          });
+        } catch (e) {}
+      }
+
+      document.getElementById('hdrCount').textContent = todosLosRegistros.length;
+      document.getElementById('aiBaseCount').textContent = `${todosLosRegistros.length} reg. indexados`;
+      renderizarLista();
+    }
+
+    function abrirTab(id, btn) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + id).classList.add('active');
+      if (btn && btn.classList.contains('tab-btn')) btn.classList.add('active');
+    }
+
+    function filtrarTipo(tipo, btn) {
+      filtroActivo = tipo;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      renderizarLista();
+    }
+
+    function renderizarLista() {
+      const q = (document.getElementById('inputBusca').value || '').toLowerCase().trim();
+      const cont = document.getElementById('listaTodos');
+      cont.innerHTML = '';
+
+      const filtrados = todosLosRegistros.filter(r => {
+        if (filtroActivo !== 'todos' && r.tipo !== filtroActivo) return false;
+        if (!q) return true;
+        return (`${r.etiqueta} ${r.titulo} ${r.resumen}`).toLowerCase().includes(q);
+      });
+
+      document.getElementById('totalFiltrados').textContent = `${filtrados.length} elementos`;
+
+      filtrados.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = `
+          <div class="item-header">
+            <span class="tag ${item.tagClass}">${item.etiqueta}</span>
+            <span style="color:var(--teal);font-size:11px;">Ubicar ↗</span>
+          </div>
+          <div class="item-title">${item.titulo}</div>
+          <div class="item-details">${item.resumen}</div>
+        `;
+        card.onclick = () => {
+          if (item.latlng) {
+            map.flyTo(item.latlng, 14);
+            map.fire('click', { latlng: L.latLng(item.latlng[0], item.latlng[1]) });
+          }
+        };
+        cont.appendChild(card);
+      });
+    }
+
+    /* ================= MOTOR DE CONSULTA IA SOBRE REGISTROS ================= */
+    async function ejecutarConsultaIA(preset) {
+      const input = document.getElementById('aiQueryInput');
+      if (preset) input.value = preset;
+      const pregunta = (input.value || '').trim();
+      if (!pregunta) return;
+
+      const out = document.getElementById('aiOutput');
+      out.innerHTML = `<span style="color:var(--teal);font-family:var(--mono);">⏳ Analizando ${todosLosRegistros.length} registros geoespaciales...</span>`;
+
+      const emerg = todosLosRegistros.filter(r => r.tipo === 'emergencias');
+      const cuencas = todosLosRegistros.filter(r => r.tipo === 'cuencas');
+      const drenaje = todosLosRegistros.filter(r => r.tipo === 'drenaje');
+      const distritos = todosLosRegistros.filter(r => r.tipo === 'distritos');
+
+      // Intentar conectar con Ollama local si está activo
+      try {
+        const contextoMuestra = todosLosRegistros.slice(0, 60)
+          .map(r => `[${r.etiqueta}] ${r.titulo} (${r.resumen})`).join('\n');
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 3500);
+        const resp = await fetch('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: ctrl.signal,
+          body: JSON.stringify({
+            model: 'qwen2.5-coder:7b',
+            stream: false,
+            prompt: `Eres el asistente de BYRAL Sentinela en Cochabamba. Responde en español de forma clara y directa usando únicamente estos registros oficiales del GAMC:\nTotal: ${emerg.length} emergencias, ${cuencas.length} cuencas UH 7, ${drenaje.length} tramos de drenaje, ${distritos.length} distritos.\nMuestra:\n${contextoMuestra}\n\nPregunta: ${pregunta}`
+          })
+        });
+        clearTimeout(tid);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.response) {
+            out.innerHTML = `<strong>✦ Respuesta IA:</strong><br><br>${data.response.replace(/\n/g, '<br>')}`;
+            return;
+          }
+        }
+      } catch (e) {}
+
+      // Motor analítico local instantáneo sobre el 100% de los registros indexados
+      const q = pregunta.toLowerCase();
+      const palabras = q.split(/\s+/).filter(w => w.length > 3 && !['como', 'cuales', 'que', 'sobre', 'todos', 'registros', 'existen', 'estan'].includes(w));
+
+      const coincidencias = todosLosRegistros.filter(r => {
+        const texto = `${r.etiqueta} ${r.titulo} ${r.resumen}`.toLowerCase();
+        return palabras.some(p => texto.includes(p));
+      });
+
+      const hidricos = emerg.filter(r => /inund|canal|rio|río|lluvia|agua|rebals|torrentera|desbord|alcantarill/.test(`${r.titulo} ${r.resumen}`.toLowerCase()));
+      const arboles = emerg.filter(r => /arbol|árbol|rama|forestal|caid/.test(`${r.titulo} ${r.resumen}`.toLowerCase()));
+
+      const unidades = {};
+      emerg.forEach(r => {
+        const u = limpiarTexto(r.raw?.['Unidad Responsable'] || r.raw?.unidad_responsable || 'GAMC');
+        unidades[u] = (unidades[u] || 0) + 1;
+      });
+      const topUnidades = Object.entries(unidades).sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+      let html = `<strong>✦ Síntesis BYRAL (${todosLosRegistros.length} registros analizados):</strong><br><br>`;
+
+      if (q.includes('resumen') || q.includes('general') || coincidencias.length === 0) {
+        html += `El repositorio indexa <strong>${emerg.length} emergencias</strong>, <strong>${cuencas.length} subcuencas UH 7</strong>, <strong>${drenaje.length} elementos de drenaje</strong> y <strong>${distritos.length} distritos/comunas</strong> (además de las 4 capas WMS activas en el mapa).<ul>`;
+        html += `<li><strong>Incidentes hídricos / canales / lluvias:</strong> ${hidricos.length} casos detectados.</li>`;
+        html += `<li><strong>Incidentes arbóreos / forestales:</strong> ${arboles.length} casos registrados.</li>`;
+        if (topUnidades.length) {
+          html += `<li><strong>Unidades con mayor carga operativa:</strong> ${topUnidades.map(([u, c]) => `${u} (${c})`).join(', ')}.</li>`;
+        }
+        if (distritos.length) {
+          html += `<li><strong>Distritos indexados:</strong> ${distritos.map(d => d.titulo).join(' · ')}.</li>`;
+        }
+        html += `</ul>`;
+      } else {
+        html += `Se encontraron <strong>${coincidencias.length} registros</strong> directamente vinculados a tu consulta:<ul>`;
+        coincidencias.slice(0, 8).forEach(c => {
+          html += `<li><strong>${c.etiqueta}:</strong> ${c.titulo} <span style="color:#94a3b8;">(${c.resumen})</span></li>`;
+        });
+        html += `</ul>`;
+        if (coincidencias.length > 8) {
+          html += `<span style="color:var(--teal);font-size:11px;">Mostrando los 8 registros más relevantes de ${coincidencias.length} coincidencias.</span>`;
+        }
+      }
+
+      out.innerHTML = html;
+    }
+
+    cargarCatalogoLocal();
+  </script>
+</body>
+</html>
+

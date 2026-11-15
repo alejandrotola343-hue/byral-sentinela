@@ -1,0 +1,512 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BYRAL CENTINELA · Observatorio Geoespacial Cochabamba</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --bg: #050912;
+      --glass: rgba(7, 13, 24, 0.78);
+      --glass-strong: rgba(5, 10, 19, 0.90);
+      --hairline: rgba(148, 197, 235, 0.14);
+      --text: #eef4fc;
+      --muted: #8fa6c2;
+      --accent: #38bdf8;
+      --coral: #fb7185;
+      --gold: #fbbf24;
+      --mint: #34d399;
+      --purple: #a78bfa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* PORTADA ORBITAL 3D SIN RECUADROS */
+    #entry-screen {
+      position: fixed; inset: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: flex-end; padding-right: 8vw;
+      padding: 6vw;
+      background: radial-gradient(circle at 30% 50%, #0b172a 0%, #04070e 75%);
+    }
+    #space-canvas { position: absolute; inset: 0; z-index: 1; }
+    .hero-copy {
+      position: relative; z-index: 2; max-width: 470px;
+      text-align: left;
+    }
+    .hero-eyebrow {
+      font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 14px; font-weight: 600;
+    }
+    .hero-title {
+      font-size: clamp(32px, 4vw, 52px); font-weight: 800; line-height: 1.05;
+      letter-spacing: -0.02em; margin-bottom: 16px;
+      background: linear-gradient(135deg, #ffffff 30%, #7dd3fc 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 14.5px; line-height: 1.6; color: var(--muted); margin-bottom: 28px;
+    }
+    .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+    .btn-clean {
+      border: none; cursor: pointer; padding: 12px 22px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; letter-spacing: 0.02em; transition: all 0.2s;
+    }
+    .btn-primary-glow {
+      background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+      color: #03111d; box-shadow: 0 8px 28px rgba(56, 189, 248, 0.35);
+    }
+    .btn-primary-glow:hover { transform: translateY(-1px); box-shadow: 0 12px 34px rgba(56, 189, 248, 0.5); }
+    .btn-ghost-clean {
+      background: rgba(255, 255, 255, 0.06); color: var(--text);
+      backdrop-filter: blur(10px);
+    }
+    .btn-ghost-clean:hover { background: rgba(255, 255, 255, 0.13); }
+    .orbital-telemetry {
+      margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--hairline);
+      display: flex; gap: 20px; font-family: Consolas, monospace; font-size: 11px; color: var(--muted);
+    }
+
+    /* BARRA SUPERIOR FLOTANTE SIN CAJAS */
+    #main-header {
+      position: fixed; top: 0; left: 0; right: 0; height: 52px; z-index: 30;
+      display: none; align-items: center; justify-content: space-between;
+      padding: 0 22px;
+      background: linear-gradient(180deg, rgba(5, 9, 18, 0.92) 0%, rgba(5, 9, 18, 0.55) 75%, transparent 100%);
+      backdrop-filter: blur(8px);
+    }
+    .brand-inline { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; letter-spacing: 0.04em; }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 10px var(--mint); }
+    .meteo-strip { display: flex; gap: 18px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .pill-link {
+      background: rgba(255,255,255,0.07); border: none; color: var(--text);
+      padding: 6px 14px; border-radius: 999px; font-size: 11.5px; cursor: pointer; transition: 0.2s;
+    }
+    .pill-link:hover { background: rgba(56, 189, 248, 0.22); color: #fff; }
+
+    /* VISTA CIUDADANO ABIERTA */
+    #citizen-app {
+      position: fixed; inset: 0; display: none;
+      grid-template-columns: 370px 1fr;
+    }
+    .open-sidebar {
+      position: relative; z-index: 20; height: 100vh;
+      padding: 64px 20px 20px;
+      background: linear-gradient(90deg, rgba(5, 9, 18, 0.94) 0%, rgba(5, 9, 18, 0.84) 85%, rgba(5, 9, 18, 0.0) 100%);
+      backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .tab-line {
+      display: flex; gap: 18px; border-bottom: 1px solid var(--hairline);
+      padding-bottom: 10px; margin-bottom: 14px;
+    }
+    .s-tab, .ar-tab {
+      background: none; border: none; color: var(--muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; padding: 4px 0; position: relative; transition: 0.2s;
+    }
+    .s-tab.active, .ar-tab.active { color: var(--accent); }
+    .s-tab.active::after, .ar-tab.active::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: -11px; height: 2px; background: var(--accent);
+    }
+    .s-pane, .ar-pane { display: none; flex: 1; overflow-y: auto; padding-right: 4px; }
+    .s-pane.active, .ar-pane.active { display: flex; flex-direction: column; }
+
+    .incident-item {
+      padding: 11px 4px; border-bottom: 1px solid var(--hairline); cursor: pointer; transition: 0.15s;
+    }
+    .incident-item:hover { padding-left: 8px; background: rgba(56, 189, 248, 0.05); }
+
+    input, select, textarea {
+      width: 100%; background: rgba(255, 255, 255, 0.05); border: none;
+      border-bottom: 1px solid var(--hairline); color: var(--text);
+      padding: 9px 10px; font-size: 12.5px; margin-bottom: 10px; outline: none; border-radius: 4px 4px 0 0;
+    }
+    input:focus, select:focus, textarea:focus { border-bottom-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+
+    /* VISTA DESARROLLADOR / ADMIN FULL-BLEED SIN RECUADROS */
+    #admin-app {
+      position: fixed; inset: 0; display: none;
+    }
+    #admin-map, #citizen-map {
+      position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1;
+    }
+
+    /* TELEMETRIA KPI SUPERIOR FLOTANTE SIN CAJAS */
+    .floating-kpis {
+      position: fixed; top: 56px; left: 320px; right: 410px; z-index: 20;
+      display: flex; justify-content: space-around; align-items: center;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, rgba(5, 9, 18, 0.85) 0%, rgba(5, 9, 18, 0.0) 100%);
+      pointer-events: none;
+    }
+    .kpi-metric { text-align: center; pointer-events: auto; }
+    .kpi-metric .lbl { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .kpi-metric .val { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,0.8); }
+
+    /* PANEL IZQUIERDO FLOTANTE SIN BORDES */
+    .admin-left-stream {
+      position: fixed; top: 52px; left: 0; bottom: 0; width: 315px; z-index: 20;
+      padding: 14px 18px 20px;
+      background: linear-gradient(90deg, rgba(5, 9, 18, 0.94) 0%, rgba(5, 9, 18, 0.80) 82%, transparent 100%);
+      backdrop-filter: blur(10px);
+      overflow-y: auto; display: flex; flex-direction: column; gap: 18px;
+    }
+
+    /* PANEL DERECHO FLOTANTE SIN BORDES */
+    .admin-right-stream {
+      position: fixed; top: 52px; right: 0; bottom: 0; width: 405px; z-index: 20;
+      padding: 14px 20px 20px 26px;
+      background: linear-gradient(270deg, rgba(5, 9, 18, 0.95) 0%, rgba(5, 9, 18, 0.84) 85%, transparent 100%);
+      backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    .sec-heading {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* PILLS DE FILTRO POR NIVEL DE DESASTRE */
+    .severity-bar {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+    }
+    .sev-pill {
+      border: none; border-radius: 999px; padding: 5px 10px; font-size: 10.5px; font-weight: 700;
+      cursor: pointer; background: rgba(255, 255, 255, 0.07); color: var(--muted); transition: 0.18s;
+    }
+    .sev-pill:hover { color: #fff; background: rgba(255, 255, 255, 0.14); }
+    .sev-pill.active[data-sev="TODOS"] { background: rgba(56, 189, 248, 0.25); color: #7dd3fc; }
+    .sev-pill.active[data-sev="CRITICO"] { background: rgba(244, 63, 94, 0.28); color: #fda4af; }
+    .sev-pill.active[data-sev="ALTO"] { background: rgba(245, 158, 11, 0.28); color: #fcd34d; }
+    .sev-pill.active[data-sev="MEDIO"] { background: rgba(56, 189, 248, 0.24); color: #bae6fd; }
+    .sev-pill.active[data-sev="BAJO"] { background: rgba(52, 211, 153, 0.24); color: #6ee7b7; }
+
+    .layer-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 0; border-bottom: 1px solid rgba(148, 197, 235, 0.08); font-size: 12px;
+    }
+    .layer-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .layer-row input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--accent); }
+    .zoom-mini {
+      background: none; border: none; color: var(--accent); font-size: 11px; cursor: pointer; padding: 2px 6px;
+    }
+    .zoom-mini:hover { text-decoration: underline; }
+
+    .slider-block { margin-bottom: 10px; font-size: 11.5px; }
+    .slider-block input[type="range"] { padding: 0; margin: 4px 0 0; accent-color: var(--accent); }
+
+    /* FILAS ABIERTAS SIN CAJAS EN PANEL DERECHO */
+    .prob-row {
+      padding: 10px 2px; border-bottom: 1px solid var(--hairline); cursor: pointer; transition: 0.15s;
+    }
+    .prob-row:hover { padding-left: 6px; }
+    .prob-bar-bg { height: 3px; background: rgba(255,255,255,0.08); margin-top: 6px; border-radius: 2px; overflow: hidden; }
+    .prob-bar-fill { height: 100%; border-radius: 2px; }
+
+    .report-admin-item {
+      padding: 12px 2px; border-bottom: 1px solid var(--hairline); font-size: 12px; line-height: 1.48;
+    }
+    .badge {
+      font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.04em;
+    }
+    .b-crit { background: rgba(244, 63, 94, 0.22); color: #fda4af; }
+    .b-warn { background: rgba(245, 158, 11, 0.22); color: #fcd34d; }
+    .b-live { background: rgba(56, 189, 248, 0.20); color: #7dd3fc; }
+    .b-low  { background: rgba(52, 211, 153, 0.20); color: #6ee7b7; }
+
+    /* EXPEDIENTE DESPLEGABLE DEBAJO DEL ELEMENTO CLICKEADO EN DATOS GAMC */
+    .gamc-row-item {
+      padding: 10px 4px; border-bottom: 1px solid var(--hairline); cursor: pointer; transition: 0.15s;
+    }
+    .gamc-row-item:hover { background: rgba(56, 189, 248, 0.06); }
+    .gamc-drawer-detail {
+      margin-top: 8px; padding: 10px 12px;
+      border-left: 2px solid var(--accent);
+      background: rgba(56, 189, 248, 0.06);
+      font-size: 11.5px; line-height: 1.5;
+    }
+    .sub-complaint-line {
+      padding: 7px 0; border-bottom: 1px dashed rgba(148, 197, 235, 0.16);
+    }
+    .sub-complaint-line:last-child { border-bottom: none; }
+
+    /* SELECTOR DE MAPA BASE FLOTANTE */
+    .bm-float {
+      position: fixed; top: 62px; left: 330px; z-index: 25;
+    }
+    .bm-btn {
+      background: rgba(5, 9, 18, 0.78); backdrop-filter: blur(8px);
+      border: none; color: var(--text); padding: 7px 14px; border-radius: 999px;
+      font-size: 11.5px; cursor: pointer;
+    }
+    .bm-dropdown-menu {
+      display: none; position: absolute; top: 36px; left: 0; min-width: 150px;
+      background: rgba(7, 13, 24, 0.95); backdrop-filter: blur(12px);
+      border-radius: 10px; padding: 6px 0;
+    }
+    .bm-dropdown-menu.open { display: block; }
+    .bm-opt {
+      display: block; width: 100%; text-align: left; background: none; border: none;
+      color: var(--muted); padding: 7px 14px; font-size: 11.5px; cursor: pointer;
+    }
+    .bm-opt:hover, .bm-opt.active { color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+
+    /* LEYENDA INFERIOR FLOTANTE SIN RECUADRO */
+    .bottom-legend-strip {
+      position: fixed; bottom: 14px; left: 330px; right: 420px; z-index: 20;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 14px;
+      font-size: 11px; color: #dbeafe; text-shadow: 0 1px 6px #000;
+      pointer-events: none;
+    }
+
+    /* MODAL LOGIN LIMPIO */
+    #login-modal {
+      position: fixed; inset: 0; z-index: 80; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(3, 7, 15, 0.82); backdrop-filter: blur(14px);
+    }
+    #login-modal.open { display: flex; }
+    .login-clean-box { width: 320px; padding: 10px; }
+
+    .msg-usr { align-self: flex-end; background: rgba(56,189,248,0.18); padding: 8px 12px; border-radius: 12px; margin: 5px 0; font-size: 12px; }
+    .msg-ai  { align-self: flex-start; border-left: 2px solid var(--mint); padding: 6px 10px; margin: 5px 0; font-size: 12px; color: var(--muted); }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 197, 235, 0.25); border-radius: 4px; }
+  /* UNIFORMIDAD DE BORDES */ .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:rgba(7,13,24,0.92)!important;color:#eef4fc!important;backdrop-filter:blur(14px);border:1px solid rgba(56,189,248,0.28);box-shadow:0 14px 36px rgba(0,0,0,0.65)!important;border-radius:12px!important;} .leaflet-popup-close-button{color:#8fa6c2!important;} .leaflet-tooltip{background:rgba(7,13,24,0.88)!important;color:#eef4fc!important;border:1px solid rgba(148,197,235,0.25)!important;border-radius:8px!important;} .admin-left-stream{-webkit-mask-image:linear-gradient(90deg,#000 84%,transparent 100%);mask-image:linear-gradient(90deg,#000 84%,transparent 100%);} .admin-right-stream{-webkit-mask-image:linear-gradient(270deg,#000 86%,transparent 100%);mask-image:linear-gradient(270deg,#000 86%,transparent 100%);} .open-sidebar{-webkit-mask-image:linear-gradient(90deg,#000 86%,transparent 100%);mask-image:linear-gradient(90deg,#000 86%,transparent 100%);}/* BORDES UNIFORMES */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: rgba(7,13,24,0.92) !important; color: #eef4fc !important; backdrop-filter: blur(14px); border: 1px solid rgba(56,189,248,0.28); box-shadow: 0 14px 36px rgba(0,0,0,0.65) !important; border-radius: 12px !important; }
+.leaflet-popup-close-button { color: #8fa6c2 !important; }
+.leaflet-tooltip { background: rgba(7,13,24,0.88) !important; color: #eef4fc !important; border: 1px solid rgba(148,197,235,0.25) !important; border-radius: 8px !important; }
+.admin-left-stream { -webkit-mask-image: linear-gradient(90deg, #000 84%, transparent 100%); mask-image: linear-gradient(90deg, #000 84%, transparent 100%); }
+.admin-right-stream { -webkit-mask-image: linear-gradient(270deg, #000 86%, transparent 100%); mask-image: linear-gradient(270deg, #000 86%, transparent 100%); }
+.open-sidebar { -webkit-mask-image: linear-gradient(90deg, #000 86%, transparent 100%); mask-image: linear-gradient(90deg, #000 86%, transparent 100%); }</style>
+</head>
+<body>
+
+  <!-- PORTADA ORBITAL 3D -->
+  <section id="entry-screen">
+    <div id="space-canvas"></div>
+    <div class="hero-copy">
+      <div class="hero-eyebrow">OBSERVATORIO SATELITAL &middot; COCHABAMBA</div>
+      <h1 class="hero-title">BYRAL CENTINELA</h1>
+      <p class="hero-sub">
+        Monitoreo hidrometeorol&oacute;gico en tiempo real, telemetr&iacute;a orbital y an&aacute;lisis hist&oacute;rico de emergencias e hidrolog&iacute;a del Gobierno Aut&oacute;nomo Municipal de Cochabamba.
+      </p>
+      <div class="hero-actions">
+        <button class="btn-clean btn-primary-glow" onclick="ingresarModoCiudadano()">Explorar Mapa en Vivo</button>
+        <button class="btn-clean btn-ghost-clean" onclick="abrirModalLogin()">Consola Desarrollador</button>
+      </div>
+      <div class="orbital-telemetry">
+        <span id="utc-clock-txt">--:--:-- UTC</span>
+        <span>GMST <strong id="gmst-txt" style="color:var(--text);">0.00&deg;</strong></span>
+        <span id="db-sync-status" style="color:var(--mint);">SINCRONIZANDO BASE...</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- HEADER SUPERIOR TRANSPARENTE -->
+  <header id="main-header">
+    <div class="brand-inline">
+      <span class="pulse-dot"></span>
+      <span>BYRAL CENTINELA</span>
+      <span id="env-tag" style="color:var(--accent);font-weight:500;"></span>
+    </div>
+    <div class="meteo-strip">
+      <span id="live-clock">EN VIVO</span>
+      <span id="top-temp">&#127777; -- &deg;C</span>
+      <span id="top-rain">&#127783; 0.0 mm/h</span>
+      <span id="top-drought">&#127964; Suelo --%</span>
+      <span id="top-rad">&#9728; -- W/m&sup2;</span>
+    </div>
+    <div class="header-actions">
+      <button class="pill-link" onclick="volverPortadaOrbital()">&Oacute;rbita</button>
+      <button id="btn-open-admin" class="pill-link" onclick="abrirModalLogin()">Modo Desarrollador</button>
+      <button id="btn-exit-admin" class="pill-link" style="display:none;color:var(--coral);" onclick="cerrarSesionAdmin()">&larr; Vista Ciudadano</button>
+    </div>
+  </header>
+
+  <!-- VISTA CIUDADANO -->
+  <main id="citizen-app">
+    <aside class="open-sidebar">
+      <div id="live-narrative" style="font-size:12px;color:var(--muted);margin-bottom:12px;">Sincronizando estaciones...</div>
+      <div class="tab-line">
+        <button class="s-tab active" onclick="cambiarTabCiudadano('vivo', this)">En Vivo</button>
+        <button class="s-tab" onclick="cambiarTabCiudadano('reportar', this)">Reportar</button>
+        <button class="s-tab" onclick="cambiarTabCiudadano('ia', this)">Asistente IA</button>
+      </div>
+      <div id="c-pane-vivo" class="s-pane active">
+        <div id="live-points-list"></div>
+      </div>
+      <div id="c-pane-reportar" class="s-pane">
+        <form onsubmit="registrarReporteCiudadano(event)">
+          <input id="c-nombre" placeholder="Nombre completo" required />
+          <input id="c-carnet" placeholder="Carnet de Identidad (CI)" required />
+          <input id="c-telefono" placeholder="Celular de contacto" required />
+          <select id="c-tipo">
+            <option>Inundaci&oacute;n / Desborde</option>
+            <option>&Aacute;rbol Ca&iacute;do / Obstrucci&oacute;n</option>
+            <option>Accidente de Tr&aacute;nsito</option>
+            <option>Deslizamiento / Derrumbe</option>
+          </select>
+          <input id="c-lugar" placeholder="Direcci&oacute;n o referencia exacta" required />
+          <div id="c-coords-lbl" style="font-size:11px;color:var(--accent);margin-bottom:8px;">Haz clic en el mapa para fijar ubicaci&oacute;n</div>
+          <textarea id="c-desc" rows="3" placeholder="Describe la emergencia..." required></textarea>
+          <button type="submit" class="btn-clean btn-primary-glow" style="width:100%;">Publicar Reporte</button>
+        </form>
+      </div>
+      <div id="c-pane-ia" class="s-pane">
+        <div id="citizen-ai-chat" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input id="citizen-ai-input" placeholder="Consulta clima o incidentes..." style="margin:0;" onkeydown="if(event.key==='Enter') enviarIACiudadano()" />
+          <button class="pill-link" onclick="enviarIACiudadano()">Enviar</button>
+        </div>
+      </div>
+    </aside>
+    <div id="citizen-map"></div><canvas id="citizen-weather-fx" style="position:fixed;inset:0;z-index:12;pointer-events:none;"></canvas>
+  </main>
+
+  <!-- VISTA DESARROLLADOR / ADMINISTRADOR SIN RECUADROS -->
+  <main id="admin-app">
+    <div id="admin-map"></div>
+
+    <!-- KPIs FLOTANTES -->
+    <div class="floating-kpis">
+      <div class="kpi-metric"><div class="lbl">Emergencias GAMC</div><div class="val" id="kpi-emerg">0</div></div>
+      <div class="kpi-metric"><div class="lbl">Cuencas UH 7</div><div class="val" id="kpi-cuencas">0</div></div>
+      <div class="kpi-metric"><div class="lbl">Drenaje / R&iacute;os</div><div class="val" id="kpi-dren">0</div></div>
+      <div class="kpi-metric"><div class="lbl">Distritos</div><div class="val" id="kpi-dist">0</div></div>
+      <div class="kpi-metric"><div class="lbl">En Vivo Hoy</div><div class="val" style="color:var(--coral);" id="kpi-live-rep">0</div></div>
+    </div>
+
+    <!-- SELECTOR DE MAPA BASE -->
+    <div class="bm-float">
+      <button class="bm-btn" onclick="toggleBasemapMenu('admin', event)"><span id="admin-bm-current">&#128752; Satelital</span> &#9662;</button>
+      <div id="admin-bm-menu" class="bm-dropdown-menu">
+        <button class="bm-opt active" onclick="setBasemap('admin','satellite',this)">&#128752; Satelital</button>
+        <button class="bm-opt" onclick="setBasemap('admin','relief',this)">&#9968; Relieve 3D</button>
+        <button class="bm-opt" onclick="setBasemap('admin','topo',this)">&#128506; Topogr&aacute;fico</button>
+        <button class="bm-opt" onclick="setBasemap('admin','streets',this)">&#128739; Calles</button>
+      </div>
+    </div>
+
+    <!-- PANEL IZQUIERDO ABIERTO: FILTRO DE DESASTRE + CAPAS + MOTOR -->
+    <aside class="admin-left-stream">
+      <div>
+        <div class="sec-heading"><span>Prioridad por Nivel de Desastre</span></div>
+        <div class="severity-bar" id="severity-filter-bar">
+          <button class="sev-pill active" data-sev="TODOS" onclick="filtrarPorNivelDesastre('TODOS', this)">Todos (<span id="sev-cnt-todos">0</span>)</button>
+          <button class="sev-pill" data-sev="CRITICO" onclick="filtrarPorNivelDesastre('CRITICO', this)">Cr&iacute;tico (<span id="sev-cnt-crit">0</span>)</button>
+          <button class="sev-pill" data-sev="ALTO" onclick="filtrarPorNivelDesastre('ALTO', this)">Alto (<span id="sev-cnt-alto">0</span>)</button>
+          <button class="sev-pill" data-sev="MEDIO" onclick="filtrarPorNivelDesastre('MEDIO', this)">Medio (<span id="sev-cnt-medio">0</span>)</button>
+          <button class="sev-pill" data-sev="BAJO" onclick="filtrarPorNivelDesastre('BAJO', this)">Bajo (<span id="sev-cnt-bajo">0</span>)</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-heading"><span>Capas Cartogr&aacute;ficas GAMC</span><span style="color:var(--mint);font-size:9.5px;">100% HIST&Oacute;RICO</span></div>
+        <div class="layer-row">
+          <label><input type="checkbox" checked onchange="toggleAdminGroup('emergencias', this.checked)" /> <span style="color:#22d3ee;">&#9679;</span> Emergencias (<span id="cnt-emerg">0</span>)</label>
+          <button class="zoom-mini" onclick="zoomToLayer('emergencias')">Enfocar</button>
+        </div>
+        <div class="layer-row">
+          <label><input type="checkbox" checked onchange="toggleAdminGroup('cuencas', this.checked)" /> <span style="color:#f5d782;">&#9632;</span> Cuencas UH 7 (<span id="cnt-cuencas">0</span>)</label>
+          <button class="zoom-mini" onclick="zoomToLayer('cuencas')">Enfocar</button>
+        </div>
+        <div class="layer-row">
+          <label><input type="checkbox" checked onchange="toggleAdminGroup('drenaje', this.checked)" /> <span style="color:#1d9bf0;">&#9644;</span> Drenaje / R&iacute;os (<span id="cnt-dren">0</span>)</label>
+          <button class="zoom-mini" onclick="zoomToLayer('drenaje')">Enfocar</button>
+        </div>
+        <div class="layer-row">
+          <label><input type="checkbox" checked onchange="toggleAdminGroup('distritos', this.checked)" /> <span style="color:#a78bfa;">&#9633;</span> Distritos D1-D14 (<span id="cnt-dist">0</span>)</label>
+          <button class="zoom-mini" onclick="zoomToLayer('distritos')">Enfocar</button>
+        </div>
+        <div class="layer-row">
+          <label><input type="checkbox" checked onchange="toggleAdminGroup('live', this.checked)" /> <span style="color:#f43f5e;">&#9679;</span> Reportes Hoy</label>
+          <button class="zoom-mini" onclick="zoomToLayer('live')">Centro</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-heading"><span>Motor Matem&aacute;tico Satelital</span></div>
+        <div class="slider-block">
+          <div style="display:flex;justify-content:space-between;"><span>Hist&oacute;rico GAMC (&alpha;)</span><strong id="w-hist-val">45 %</strong></div>
+          <input id="w-hist" type="range" min="0" max="100" value="45" oninput="recalcularMotorAdmin()" />
+        </div>
+        <div class="slider-block">
+          <div style="display:flex;justify-content:space-between;"><span>Lluvia GPM (&beta;)</span><strong id="w-rain-val">35 %</strong></div>
+          <input id="w-rain" type="range" min="0" max="100" value="35" oninput="recalcularMotorAdmin()" />
+        </div>
+        <div class="slider-block">
+          <div style="display:flex;justify-content:space-between;"><span>Humedad Suelo (&gamma;)</span><strong id="w-soil-val">20 %</strong></div>
+          <input id="w-soil" type="range" min="0" max="100" value="20" oninput="recalcularMotorAdmin()" />
+        </div>
+        <button class="pill-link" style="width:100%;margin-top:4px;" onclick="cargarTelemetriaSatelital();recalcularMotorAdmin();">Sincronizar Sat&eacute;lites</button>
+      </div>
+    </aside>
+
+    <!-- PANEL DERECHO ABIERTO: PROBABILIDAD + BANDEJA IA + DATOS GAMC CON EXPEDIENTE COMPLETO -->
+    <aside class="admin-right-stream">
+      <div class="tab-line">
+        <button class="ar-tab active" onclick="cambiarTabAdminRight('prob', this)">1. Probabilidad</button>
+        <button class="ar-tab" onclick="cambiarTabAdminRight('inbox', this)">2. Bandeja IA (<span id="admin-inbox-count">0</span>)</button>
+        <button class="ar-tab" onclick="cambiarTabAdminRight('gamc', this)">3. Datos GAMC</button>
+      </div>
+
+      <div id="ar-pane-prob" class="ar-pane active">
+        <div id="probability-ranking-list"></div>
+      </div>
+
+      <div id="ar-pane-inbox" class="ar-pane">
+        <div id="admin-inbox-cards"></div>
+      </div>
+
+      <div id="ar-pane-gamc" class="ar-pane">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="sev-pill active" data-cat="TODOS" onclick="filtrarCategoriaGAMC('TODOS', this)">Todo</button>
+          <button class="sev-pill" data-cat="DISTRITOS" onclick="filtrarCategoriaGAMC('DISTRITOS', this)">Distritos</button>
+          <button class="sev-pill" data-cat="EMERGENCIAS" onclick="filtrarCategoriaGAMC('EMERGENCIAS', this)">Emergencias</button>
+          <button class="sev-pill" data-cat="CUENCAS" onclick="filtrarCategoriaGAMC('CUENCAS', this)">Cuencas</button>
+          <button class="sev-pill" data-cat="DRENAJE" onclick="filtrarCategoriaGAMC('DRENAJE', this)">Drenaje</button>
+        </div>
+        <input id="admin-search-gamc" placeholder="Buscar distrito, denunciante, CI, queja o caso..." oninput="buscarEnDatosGAMC()" />
+        <div id="admin-gamc-list" style="flex:1;overflow-y:auto;"></div>
+      </div>
+    </aside>
+
+    <div class="bottom-legend-strip">
+      <span><strong style="color:#f5d782;">&#9632; Cuencas UH 7</strong> Hidrolog&iacute;a</span>
+      <span><strong style="color:#1d9bf0;">&#9644; Drenaje</strong> R&iacute;o Rocha / Torrenteras</span>
+      <span><strong style="color:#a78bfa;">&#9633; Distritos</strong> L&iacute;mites D1-D14</span>
+      <span><strong style="color:#22d3ee;">&#9679; Emergencias</strong> Hist&oacute;rico GAMC</span>
+      <span><strong style="color:#f43f5e;">&#9679; En Vivo</strong> Reportes Hoy</span>
+    </div>
+  </main>
+
+  <!-- MODAL LOGIN -->
+  <div id="login-modal" onclick="if(event.target===this) cerrarModalLogin()">
+    <div class="login-clean-box">
+      <div class="sec-heading"><span>Acceso Consola Desarrollador</span></div>
+      <input id="login-user" placeholder="Usuario (admin)" />
+      <input id="login-pass" type="password" placeholder="Contrase&ntilde;a (admin)" onkeydown="if(event.key==='Enter') validarLoginAdmin()" />
+      <div id="login-error" style="display:none;color:var(--coral);font-size:11.5px;margin-bottom:8px;">Credenciales incorrectas.</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="pill-link" onclick="cerrarModalLogin()">Cancelar</button>
+        <button class="btn-clean btn-primary-glow" style="padding:8px 18px;" onclick="validarLoginAdmin()">Ingresar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/datos_gamc.js"></script>
+  <script src="./js/orbita3d.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

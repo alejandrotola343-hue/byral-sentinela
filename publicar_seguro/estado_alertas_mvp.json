@@ -1,0 +1,85 @@
+{
+  "meta_sistema": {
+    "proyecto": "BYRAL Sentinela",
+    "modo": "SIMULACION_MVP",
+    "timestamp_utc": "2026-11-14T01:02:34.237419+00:00",
+    "escenario_activo": {
+      "escenario_id": "SIM-CBBA-D9-20250217",
+      "modo_operacion": "SIMULACION_MVP",
+      "zona_piloto": "Distrito 9 - La Maica (Microcuenca Río Rocha / Tamborada)",
+      "fecha_evento": "2025-02-17",
+      "fuentes": [
+        "NASA GPM IMERG V07B (Precipitación acumulada 72h)",
+        "NASA NISAR / Sentinel-1 SAR (Retrodispersión VV/VH)",
+        "GAMC WMS (Cuencas, Drenaje e Incidentes Históricos)"
+      ],
+      "qa_gatekeeper": {
+        "datos_recientes_ok": true,
+        "geometria_confiable_ok": true,
+        "fuente_validada_ok": true,
+        "estado_trazabilidad": "PROCESADO_PARA_SIMULACION"
+      }
+    }
+  },
+  "validacion_ground_truth_gamc": {
+    "total_incidentes_ingestados": 97,
+    "incidentes_en_distrito_9": 3,
+    "incidentes_hidricos_confirmados": 20
+  },
+  "alertas_ciudadanos": [
+    {
+      "usuario_id": "USR-01",
+      "alias": "Vecino La Maica Sur",
+      "coordenadas": {
+        "lat": -17.448,
+        "lon": -66.2
+      },
+      "zona_asignada": "ZONA_A",
+      "indice_susceptibilidad": 0.902,
+      "sector_detectado": "Sector A - Llanura de inundación La Maica Sur (Canal Tamborada)",
+      "canal_preferido": "voz",
+      "mensaje_accesible": {
+        "texto_claro": "[SIMULACIÓN MVP] ALERTA PRIORITARIA (Zona A - Impacto): Riesgo alto de anegamiento en Sector A - Llanura de inundación La Maica Sur (Canal Tamborada). Evitar zonas bajas/canales y seguir rutas seguras.",
+        "guion_audio_tts": "Atención. Simulación de alerta prioritaria en La Maica. Evitar zonas bajas/canales y seguir rutas seguras."
+      }
+    },
+    {
+      "usuario_id": "USR-02",
+      "alias": "Comerciante Av. Petrolera / D9",
+      "coordenadas": {
+        "lat": -17.437,
+        "lon": -66.19
+      },
+      "zona_asignada": "ZONA_B",
+      "indice_susceptibilidad": 0.605,
+      "sector_detectado": "Sector B - Perímetro de amortiguamiento y conectividad aguas abajo",
+      "canal_preferido": "vibracion",
+      "mensaje_accesible": {
+        "texto_claro": "[SIMULACIÓN MVP] AVISO DE VIGILANCIA (Zona B): Precaución por cercanía a drenaje en Sector B - Perímetro de amortiguamiento y conectividad aguas abajo. Mantener precaución y monitorear avisos oficiales.",
+        "senial_haptica": {
+          "patron_ms": [
+            300,
+            300,
+            300
+          ],
+          "intensidad": "MEDIA"
+        }
+      }
+    },
+    {
+      "usuario_id": "USR-03",
+      "alias": "Estudiante Zona Central",
+      "coordenadas": {
+        "lat": -17.42,
+        "lon": -66.172
+      },
+      "zona_asignada": "ZONA_C",
+      "indice_susceptibilidad": 0.293,
+      "sector_detectado": "Sector C - Zona urbana alta fuera de drenaje directo",
+      "canal_preferido": "texto",
+      "mensaje_accesible": {
+        "texto_claro": "[SIMULACIÓN MVP] ESTADO INFORMATIVO (Zona C): Sin impacto hídrico previsto en su sector."
+      }
+    }
+  ]
+}

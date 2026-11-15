@@ -1,0 +1,160 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "escenario_id": "SIM-CBBA-D9-20250217",
+    "modo_operacion": "SIMULACION_MVP",
+    "zona_piloto": "Distrito 9 - La Maica (Microcuenca Río Rocha / Tamborada)",
+    "fecha_evento": "2025-02-17",
+    "fuentes": [
+      "NASA GPM IMERG V07B (Precipitación acumulada 72h)",
+      "NASA NISAR / Sentinel-1 SAR (Retrodispersión VV/VH)",
+      "GAMC WMS (Cuencas, Drenaje e Incidentes Históricos)"
+    ],
+    "qa_gatekeeper": {
+      "datos_recientes_ok": true,
+      "geometria_confiable_ok": true,
+      "fuente_validada_ok": true,
+      "estado_trazabilidad": "PROCESADO_PARA_SIMULACION"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "sector": "Sector A - Llanura de inundación La Maica Sur (Canal Tamborada)",
+        "color": "#e63946",
+        "escenario_id": "SIM-CBBA-D9-20250217",
+        "modo": "SIMULACION_MVP",
+        "generado_utc": "2026-11-14T00:58:38.315398+00:00",
+        "indice_susceptibilidad": 0.902,
+        "clasificacion": "ZONA_A",
+        "nivel_atencion": "IMPACTO_ALTO",
+        "accion_recomendada": "Evitar zonas bajas/canales y seguir rutas seguras.",
+        "desglose": {
+          "sar_norm": 0.89,
+          "lluvia_norm": 0.92,
+          "topo_norm": 0.9
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -66.208,
+              -17.442
+            ],
+            [
+              -66.192,
+              -17.442
+            ],
+            [
+              -66.192,
+              -17.454
+            ],
+            [
+              -66.208,
+              -17.454
+            ],
+            [
+              -66.208,
+              -17.442
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "sector": "Sector B - Perímetro de amortiguamiento y conectividad aguas abajo",
+        "color": "#f4a261",
+        "escenario_id": "SIM-CBBA-D9-20250217",
+        "modo": "SIMULACION_MVP",
+        "generado_utc": "2026-11-14T00:58:38.315398+00:00",
+        "indice_susceptibilidad": 0.605,
+        "clasificacion": "ZONA_B",
+        "nivel_atencion": "VIGILANCIA",
+        "accion_recomendada": "Mantener precaución y monitorear avisos oficiales.",
+        "desglose": {
+          "sar_norm": 0.44,
+          "lluvia_norm": 0.83,
+          "topo_norm": 0.55
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -66.215,
+              -17.434
+            ],
+            [
+              -66.185,
+              -17.434
+            ],
+            [
+              -66.185,
+              -17.46
+            ],
+            [
+              -66.215,
+              -17.46
+            ],
+            [
+              -66.215,
+              -17.434
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "sector": "Sector C - Zona urbana alta fuera de drenaje directo",
+        "color": "#2a9d8f",
+        "escenario_id": "SIM-CBBA-D9-20250217",
+        "modo": "SIMULACION_MVP",
+        "generado_utc": "2026-11-14T00:58:38.315398+00:00",
+        "indice_susceptibilidad": 0.293,
+        "clasificacion": "ZONA_C",
+        "nivel_atencion": "FUERA_DE_IMPACTO",
+        "accion_recomendada": "Sin alarma crítica en tu sector.",
+        "desglose": {
+          "sar_norm": 0.11,
+          "lluvia_norm": 0.6,
+          "topo_norm": 0.15
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -66.182,
+              -17.415
+            ],
+            [
+              -66.165,
+              -17.415
+            ],
+            [
+              -66.165,
+              -17.428
+            ],
+            [
+              -66.182,
+              -17.428
+            ],
+            [
+              -66.182,
+              -17.415
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

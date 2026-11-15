@@ -1,0 +1,9 @@
+[
+  "capa_cuencas.geojson",
+  "capa_distritos.geojson",
+  "capa_drenaje.geojson",
+  "capa_emergencias.geojson",
+  "estado_alertas_mvp.json",
+  "malla_offline_cochabamba.json",
+  "poligonos_la_maica.geojson"
+]

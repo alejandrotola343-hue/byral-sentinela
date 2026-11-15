@@ -1,4 +1,4 @@
-﻿import glob, re
+﻿import os, glob, re
 
 archivos = glob.glob("**/index.html", recursive=True)
 if os.path.exists("index.html") and "index.html" not in archivos:
